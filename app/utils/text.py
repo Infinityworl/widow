@@ -82,65 +82,100 @@ def media_type_label(media_type: str) -> str:
 
 
 
-def build_search_preview_caption(title: dict, *, movie_count: int = 0, series_count: int = 0, active_type: str | None = None) -> str:
-    lines = [f"🍿 <b>{html.escape(title.get('title', 'Unknown Title'))}</b>"]
+def _apply_template(template: str, **values: object) -> str:
+    safe_values = {key: ("-" if value in {None, ""} else str(value)) for key, value in values.items()}
+    try:
+        return template.format(**safe_values)
+    except Exception:
+        return template
 
-    meta_parts: list[str] = []
-    if title.get("year"):
-        meta_parts.append(str(title["year"]))
-    meta_parts.append(media_type_label(title.get("media_type", "movie")))
-    if title.get("vote_average"):
-        try:
-            meta_parts.append(f"⭐ {float(title['vote_average']):.1f}")
-        except (TypeError, ValueError):
-            pass
-    if title.get("poster_source"):
-        source = str(title["poster_source"]).upper()
-        meta_parts.append(f"🖼 {source}")
-    lines.append(" • ".join(meta_parts))
 
-    overview = (title.get("overview") or "").strip()
-    if overview:
-        lines.append("")
-        lines.append(html.escape(overview[:300] + ("..." if len(overview) > 300 else "")))
 
+def build_search_hub_caption(query: str, *, movie_count: int = 0, series_count: int = 0, active_type: str | None = None) -> str:
+    lines = [f"🔎 <b>{html.escape(query)}</b>"]
     lines.append("")
     lines.append(f"🎬 Movies: <b>{movie_count}</b>    📺 TV Series: <b>{series_count}</b>")
     lines.append("🔒 මේ buttons වැඩ කරන්නේ search කරපු user ට විතරයි.")
     if active_type == "series":
-        lines.append("📺 TV Series results open කරලා title එකක් තෝරන්න.")
+        lines.append("📺 TV Series button එක ඔබලා name button එකක් තෝරන්න.")
     elif active_type == "movie":
-        lines.append("🎬 Movie results open කරලා title එකක් තෝරන්න.")
+        lines.append("🎬 Movies button එක ඔබලා movie name button එකක් තෝරන්න.")
     else:
         lines.append("🎛 පහළ buttons වලින් Movies හරි TV Series හරි තෝරන්න.")
     return "\n".join(lines)
 
 
 
-def build_title_card_caption(
+def build_stage_caption(
+    settings,
     title: dict,
     *,
+    stage: str,
     season: int | None = None,
     quality: str | None = None,
     codec: str | None = None,
+    size_label: str | None = None,
+    episode: int | None = None,
 ) -> str:
-    lines = [f"🍿 <b>{html.escape(title.get('title', 'Unknown Title'))}</b>"]
+    title_text = title.get("title", "Unknown Title")
+    year = title.get("year")
+
+    if stage == "title":
+        template = settings.title_pick_caption
+    elif stage == "season":
+        template = settings.season_pick_caption
+    elif stage == "quality":
+        template = settings.quality_pick_caption
+    elif stage == "codec":
+        template = settings.codec_pick_caption
+    elif stage == "episode":
+        template = settings.episode_pick_caption
+    else:
+        template = settings.download_ready_caption
+
+    lines = [
+        _apply_template(
+            template,
+            title=title_text,
+            year=year,
+            media_type=media_type_label(title.get("media_type", "movie")),
+            season=season,
+            quality=quality,
+            codec=codec,
+            size=size_label,
+            episode=episode,
+        )
+    ]
+
+    if stage != "download":
+        lines.append("")
+        lines.append("🔒 මේ buttons වැඩ කරන්නේ search කරපු user ට විතරයි.")
+        return "\n".join(lines)
 
     meta_parts: list[str] = []
-    if title.get("year"):
-        meta_parts.append(str(title["year"]))
+    if year:
+        meta_parts.append(str(year))
     meta_parts.append(media_type_label(title.get("media_type", "movie")))
-    if title.get("poster_source"):
-        meta_parts.append(f"Poster: {html.escape(str(title['poster_source']).upper())}")
-    lines.append(" • ".join(meta_parts))
+    if title.get("vote_average"):
+        try:
+            meta_parts.append(f"⭐ {float(title['vote_average']):.1f}")
+        except (TypeError, ValueError):
+            pass
+    if meta_parts:
+        lines.append("")
+        lines.append(" • ".join(meta_parts))
 
     detail_parts: list[str] = []
     if season is not None:
         detail_parts.append(f"Season {season}")
+    if episode is not None:
+        detail_parts.append(f"Episode {episode}")
     if quality:
         detail_parts.append(quality)
     if codec:
         detail_parts.append(codec)
+    if size_label:
+        detail_parts.append(size_label)
     if detail_parts:
         lines.append("🧩 " + " • ".join(detail_parts))
 
@@ -150,24 +185,8 @@ def build_title_card_caption(
         lines.append(html.escape(overview[:500] + ("..." if len(overview) > 500 else "")))
 
     lines.append("")
+    lines.append("⬇️ Download button එක ඔබලා file එක bot inbox එකට ගන්න.")
     lines.append("🔒 මේ buttons වැඩ කරන්නේ search කරපු user ට විතරයි.")
-    if title.get("media_type") == "series":
-        if season is None:
-            lines.append("📺 Season එක තෝරන්න.")
-        elif quality is None:
-            lines.append("📦 Quality එක තෝරන්න.")
-        elif codec is None:
-            lines.append("⚙️ Codec එක තෝරන්න.")
-        else:
-            lines.append("📂 Episode එක තෝරන්න. File එක bot inbox එකට යවයි.")
-    else:
-        if quality is None:
-            lines.append("📦 Quality එක තෝරන්න.")
-        elif codec is None:
-            lines.append("⚙️ Codec එක තෝරන්න.")
-        else:
-            lines.append("✅ File එක bot inbox එකට යවන්න ready.")
-
     return "\n".join(lines)
 
 
@@ -179,6 +198,7 @@ def build_inbox_intro_caption(
     episode: int | None = None,
     quality: str | None = None,
     codec: str | None = None,
+    size_label: str | None = None,
 ) -> str:
     lines = [f"📩 <b>{html.escape(title.get('title', 'Unknown Title'))}</b>"]
     meta: list[str] = []
@@ -196,11 +216,13 @@ def build_inbox_intro_caption(
         detail_parts.append(quality)
     if codec:
         detail_parts.append(codec)
+    if size_label:
+        detail_parts.append(size_label)
     if detail_parts:
         lines.append("🧩 " + " • ".join(detail_parts))
 
     lines.append("")
-    lines.append("✨ ඔයා තෝරපු file එක මේ chat එකට දාගෙන එනවා.")
+    lines.append("✨ ඔයා තෝරපු file එක මේ inbox එකට ආවා.")
     lines.append("⬇️ ඊළඟ message එකේ තියෙන file එක download කරගන්න.")
     lines.append("🔁 ආයෙ group එකට යන්න ඕන නැහැ — මේ inbox එකෙන්ම ගන්න පුළුවන්.")
     return "\n".join(lines)
@@ -258,4 +280,14 @@ def build_variant_label(item: dict) -> str:
         parts.append(str(item["quality"]))
     if item.get("codec"):
         parts.append(str(item["codec"]))
-    return " • ".join(parts) or "Variant"
+    if item.get("size_label"):
+        parts.append(str(item["size_label"]))
+    return " • ".join(parts) if parts else str(item.get("_id"))
+
+
+
+def build_variant_button_text(item: dict) -> str:
+    codec = str(item.get("codec") or "Unknown Codec")
+    size_label = str(item.get("size_label") or "Size ?")
+    return f"⚙️ {codec} • {size_label}"
+
