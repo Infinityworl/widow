@@ -161,7 +161,7 @@ async def admin_text_router(bot: MovieBot, message: Message) -> None:
             {"title": text, "normalized_title": normalize_title(text), "aliases": aliases},
         )
         bot.admin_states.pop(message.from_user.id, None)
-        await message.reply_text(f"✅ Title name updated to: {text}")
+        await message.reply_text(f"✅ Title name updated to: {text}\n\n🔄 /admin panel එකෙන් title එක ආයෙ open කරාම buttons auto update වෙයි.")
         return
 
     if mode == "await_edit_title_poster":
@@ -183,19 +183,20 @@ async def admin_text_router(bot: MovieBot, message: Message) -> None:
             updates = {"poster_url": text, "poster_source": "manual"}
         await bot.db_service.update_title_fields(title_id, updates)
         bot.admin_states.pop(message.from_user.id, None)
-        await message.reply_text("✅ Poster updated.")
+        await message.reply_text("✅ Poster updated.\n\n🔄 Title card එක ආයෙ open කරාම new poster එක පේනවා.")
         return
 
     if mode == "await_edit_file_quality":
         media_file_id = state["media_file_id"]
         await bot.db_service.update_media_file_fields(media_file_id, {"quality": text})
         bot.admin_states.pop(message.from_user.id, None)
-        await message.reply_text(f"✅ Quality updated to: {text}")
+        await message.reply_text(f"✅ Quality updated to: {text}\n\n🔄 Variant buttons DB එකෙන් auto refresh වෙයි.")
         return
 
     if mode == "await_edit_file_codec":
         media_file_id = state["media_file_id"]
         await bot.db_service.update_media_file_fields(media_file_id, {"codec": text})
         bot.admin_states.pop(message.from_user.id, None)
-        await message.reply_text(f"✅ Codec updated to: {text}")
+        await message.reply_text(f"✅ Codec updated to: {text}\n\n🔄 Variant buttons DB එකෙන් auto refresh වෙයි.")
         return
+
