@@ -79,10 +79,14 @@ async def main() -> None:
         await idle()
     finally:
         if bot is not None:
-            await bot.stop()
+            try:
+                await bot.stop()
+            except Exception as exc:
+                logging.warning("Bot stop skipped: %s", exc)
         health_server.shutdown()
         health_server.server_close()
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+
