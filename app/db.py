@@ -186,6 +186,24 @@ class Database:
             sort=[("created_at", DESCENDING)],
         )
 
+    async def list_movie_variants(self, title_id: str, quality: str, limit: int = 50) -> List[Dict[str, Any]]:
+        rows = await self.media_files.find(
+            {
+                "title_id": ObjectId(title_id),
+                "quality": quality,
+            }
+        ).sort("created_at", DESCENDING).to_list(length=limit)
+
+        deduped: list[Dict[str, Any]] = []
+        seen: set[tuple[Any, ...]] = set()
+        for row in rows:
+            key = (row.get("codec"), row.get("size_label"), row.get("file_unique_id"))
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(row)
+        return deduped
+
     async def get_series_episodes(
         self,
         title_id: str,
@@ -238,3 +256,14 @@ class Database:
     async def update_media_file_fields(self, media_file_id: str, updates: Dict[str, Any]) -> None:
         updates["updated_at"] = datetime.now(timezone.utc)
         await self.media_files.update_one({"_id": ObjectId(media_file_id)}, {"$set": updates})
+
+    async def count_title_files(self, title_id: str) -> int:
+        return await self.media_files.count_documents({"title_id": ObjectId(title_id)})
+
+    async def delete_media_file(self, media_file_id: str) -> None:
+        await self.media_files.delete_one({"_id": ObjectId(media_file_id)})
+
+    async def delete_title_and_media(self, title_id: str) -> None:
+        object_id = ObjectId(title_id)
+        await self.media_files.delete_many({"title_id": object_id})
+        await self.titles.delete_one({"_id": object_id})
