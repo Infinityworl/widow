@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.pytest_cache/
+.session
+*.session
+*.session-journal
+.vscode/
+.idea/
