@@ -91,75 +91,18 @@ def _apply_template(template: str, **values: object) -> str:
 
 
 
-def ui_text(settings, attr_name: str, default: str, **values: object) -> str:
-    template = getattr(settings, attr_name, None) if settings is not None else None
-    if not template:
-        template = default
-    return _apply_template(str(template), **values)
-
-
-
-def build_search_hub_caption(
-    settings_or_query,
-    query: str | None = None,
-    *,
-    movie_count: int = 0,
-    series_count: int = 0,
-    active_type: str | None = None,
-) -> str:
-    # Supports both styles:
-    # build_search_hub_caption(query, ...)
-    # build_search_hub_caption(settings, query, ...)
-    if query is None and isinstance(settings_or_query, str):
-        settings = None
-        query = settings_or_query
-    else:
-        settings = settings_or_query
-        query = query or "Search"
-
-    if active_type == "series":
-        hint_line = "📺 TV Series button එක ඔබලා name button එකක් තෝරන්න."
-    elif active_type == "movie":
-        hint_line = "🎬 Movies button එක ඔබලා movie name button එකක් තෝරන්න."
-    else:
-        hint_line = "🎛 පහළ buttons වලින් Movies හරි TV Series හරි තෝරන්න."
-
-    if settings is not None:
-        return ui_text(
-            settings,
-            "search_hub_caption_template",
-            "🔎 <b>{query}</b>\n\n🎬 Movies: <b>{movie_count}</b>    📺 TV Series: <b>{series_count}</b>\n🔒 මේ buttons වැඩ කරන්නේ search කරපු user ට විතරයි.\n{hint_line}",
-            query=html.escape(query),
-            movie_count=movie_count,
-            series_count=series_count,
-            hint_line=hint_line,
-            active_type=active_type or "",
-        )
-
+def build_search_hub_caption(query: str, *, movie_count: int = 0, series_count: int = 0, active_type: str | None = None) -> str:
     lines = [f"🔎 <b>{html.escape(query)}</b>"]
     lines.append("")
     lines.append(f"🎬 Movies: <b>{movie_count}</b>    📺 TV Series: <b>{series_count}</b>")
     lines.append("🔒 මේ buttons වැඩ කරන්නේ search කරපු user ට විතරයි.")
-    lines.append(hint_line)
+    if active_type == "series":
+        lines.append("📺 TV Series button එක ඔබලා name button එකක් තෝරන්න.")
+    elif active_type == "movie":
+        lines.append("🎬 Movies button එක ඔබලා movie name button එකක් තෝරන්න.")
+    else:
+        lines.append("🎛 පහළ buttons වලින් Movies හරි TV Series හරි තෝරන්න.")
     return "\n".join(lines)
-
-
-
-def build_search_preview_caption(
-    settings_or_query,
-    query: str | None = None,
-    *,
-    movie_count: int = 0,
-    series_count: int = 0,
-    active_type: str | None = None,
-) -> str:
-    return build_search_hub_caption(
-        settings_or_query,
-        query,
-        movie_count=movie_count,
-        series_count=series_count,
-        active_type=active_type,
-    )
 
 
 
@@ -356,4 +299,7 @@ def build_variant_button_text(item: dict, settings=None) -> str:
         size=size_label,
         size_label=size_label,
     )
+
+```
+
 
