@@ -205,5 +205,4 @@ def admin_variant_edit_keyboard(settings, title_id: str, media_file_id: str) -> 
         ]
     )
 
-```
 
