@@ -91,18 +91,53 @@ def _apply_template(template: str, **values: object) -> str:
 
 
 
-def build_search_hub_caption(query: str, *, movie_count: int = 0, series_count: int = 0, active_type: str | None = None) -> str:
-    lines = [f"🔎 <b>{html.escape(query)}</b>"]
-    lines.append("")
-    lines.append(f"🎬 Movies: <b>{movie_count}</b>    📺 TV Series: <b>{series_count}</b>")
-    lines.append("🔒 මේ buttons වැඩ කරන්නේ search කරපු user ට විතරයි.")
-    if active_type == "series":
-        lines.append("📺 TV Series button එක ඔබලා name button එකක් තෝරන්න.")
-    elif active_type == "movie":
-        lines.append("🎬 Movies button එක ඔබලා movie name button එකක් තෝරන්න.")
+def ui_text(settings, attr_name: str, default: str, **values: object) -> str:
+    template = getattr(settings, attr_name, None) if settings is not None else None
+    if not template:
+        template = default
+    return _apply_template(template, **values)
+
+
+
+def build_search_hub_caption(*args, **kwargs) -> str:
+    """
+    Supports both call styles:
+    - build_search_hub_caption(settings, query, movie_count=..., series_count=..., active_type=...)
+    - build_search_hub_caption(query, movie_count=..., series_count=..., active_type=...)
+    """
+    settings = None
+    if args and not isinstance(args[0], str):
+        settings = args[0]
+        query = args[1] if len(args) > 1 else kwargs.get("query", "Search")
     else:
-        lines.append("🎛 පහළ buttons වලින් Movies හරි TV Series හරි තෝරන්න.")
-    return "\n".join(lines)
+        query = args[0] if args else kwargs.get("query", "Search")
+
+    movie_count = kwargs.get("movie_count", 0)
+    series_count = kwargs.get("series_count", 0)
+    active_type = kwargs.get("active_type")
+
+    if active_type == "series":
+        hint_line = "📺 TV Series button එක ඔබලා name button එකක් තෝරන්න."
+    elif active_type == "movie":
+        hint_line = "🎬 Movies button එක ඔබලා movie name button එකක් තෝරන්න."
+    else:
+        hint_line = "🎛 පහළ buttons වලින් Movies හරි TV Series හරි තෝරන්න."
+
+    return ui_text(
+        settings,
+        "search_hub_caption_template",
+        "🔎 <b>{query}</b>\n\n🎬 Movies: <b>{movie_count}</b>    📺 TV Series: <b>{series_count}</b>\n🔒 මේ buttons වැඩ කරන්නේ search කරපු user ට විතරයි.\n{hint_line}",
+        query=html.escape(str(query)),
+        movie_count=movie_count,
+        series_count=series_count,
+        active_type=active_type,
+        hint_line=hint_line,
+    )
+
+
+
+def build_search_preview_caption(*args, **kwargs) -> str:
+    return build_search_hub_caption(*args, **kwargs)
 
 
 
@@ -121,17 +156,17 @@ def build_stage_caption(
     year = title.get("year")
 
     if stage == "title":
-        template = settings.title_pick_caption
+        template = getattr(settings, "title_pick_caption", "🎞 <b>{title}</b>\n\nName button එක tap කරලා next step එකට යන්න.")
     elif stage == "season":
-        template = settings.season_pick_caption
+        template = getattr(settings, "season_pick_caption", "📺 <b>{title}</b>\n\nSeason එක තෝරන්න.")
     elif stage == "quality":
-        template = settings.quality_pick_caption
+        template = getattr(settings, "quality_pick_caption", "📦 <b>{title}</b>\n\nQuality එක තෝරන්න.")
     elif stage == "codec":
-        template = settings.codec_pick_caption
+        template = getattr(settings, "codec_pick_caption", "⚙️ <b>{title}</b>\n\nCodec + File Size button එක තෝරන්න.")
     elif stage == "episode":
-        template = settings.episode_pick_caption
+        template = getattr(settings, "episode_pick_caption", "🎬 <b>{title}</b>\n\nEpisode එක තෝරන්න.")
     else:
-        template = settings.download_ready_caption
+        template = getattr(settings, "download_ready_caption", "🍿 <b>{title}</b>\n\nDownload button එකෙන් inbox එකට file එක ගන්න.")
 
     lines = [
         _apply_template(
