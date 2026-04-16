@@ -200,6 +200,5 @@ async def admin_text_router(bot: MovieBot, message: Message) -> None:
         await message.reply_text(f"✅ Codec updated to: {text}\n\n🔄 Variant buttons DB එකෙන් auto refresh වෙයි.")
         return
 
-```
 
 
