@@ -198,9 +198,9 @@ def admin_variant_picker(settings, title_id: str, variants: list[dict]) -> Inlin
 def admin_variant_edit_keyboard(settings, title_id: str, media_file_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_change_quality_button_text", "📦 Change Quality"), callback_data=f"adm|edit|file|quality|{title_id}|{media_file_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_change_codec_button_text", "⚙️ Change Codec"), callback_data=f"adm|edit|file|codec|{title_id}|{media_file_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_delete_file_button_text", "🗑 Delete This File"), callback_data=f"adm|delfile|{title_id}|{media_file_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_change_quality_button_text", "📦 Change Quality"), callback_data=f"adm|q|{media_file_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_change_codec_button_text", "⚙️ Change Codec"), callback_data=f"adm|c|{media_file_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_delete_file_button_text", "🗑 Delete This File"), callback_data=f"adm|x|{title_id}|{media_file_id}")],
             [InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|variants|{title_id}")],
         ]
     )
