@@ -300,6 +300,3 @@ def build_variant_button_text(item: dict, settings=None) -> str:
         size_label=size_label,
     )
 
-```
-
-
