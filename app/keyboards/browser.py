@@ -133,10 +133,10 @@ def download_keyboard(settings, title_id: str, media_file_id: str) -> InlineKeyb
 def admin_home_keyboard(settings) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_manage_movies_button_text", "🎬 Manage Movies"), callback_data="adm|find|movie")],
-            [InlineKeyboardButton(ui_text(settings, "admin_manage_series_button_text", "📺 Manage Series"), callback_data="adm|find|series")],
-            [InlineKeyboardButton(ui_text(settings, "admin_sync_series_button_text", "📥 Sync Series Post"), callback_data="adm|sync|series")],
-            [InlineKeyboardButton(ui_text(settings, "admin_sync_movie_button_text", "📥 Sync Movie Post"), callback_data="adm|sync|movie")],
+            [InlineKeyboardButton(ui_text(settings, "admin_manage_movies_button_text", "🎬 Manage Movies"), callback_data="adm|fm|movie")],
+            [InlineKeyboardButton(ui_text(settings, "admin_manage_series_button_text", "📺 Manage Series"), callback_data="adm|fm|series")],
+            [InlineKeyboardButton(ui_text(settings, "admin_sync_series_button_text", "📥 Sync Series Post"), callback_data="adm|sy|series")],
+            [InlineKeyboardButton(ui_text(settings, "admin_sync_movie_button_text", "📥 Sync Movie Post"), callback_data="adm|sy|movie")],
         ]
     )
 
@@ -149,19 +149,19 @@ def admin_pick_title_keyboard(settings, items: list[dict]) -> InlineKeyboardMark
             label = ui_text(settings, "series_title_button_text", "📺 {title}{year_label}", title=item.get("title", "Unknown"), year=item.get("year"), year_label=year_label)
         else:
             label = ui_text(settings, "movie_title_button_text", "🎞 {title}{year_label}", title=item.get("title", "Unknown"), year=item.get("year"), year_label=year_label)
-        rows.append([InlineKeyboardButton(label[:60], callback_data=f"adm|title|{item['_id']}")])
-    rows.append([InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data="adm|home")])
+        rows.append([InlineKeyboardButton(label[:60], callback_data=f"adm|tt|{item['_id']}")])
+    rows.append([InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data="adm|hm")])
     return InlineKeyboardMarkup(rows)
 
 
 def admin_title_keyboard(settings, title_id: str, media_type: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_poster_tools_button_text", "🖼 Poster Tools"), callback_data=f"adm|poster|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_edit_name_button_text", "🎞 Edit Name"), callback_data=f"adm|edit|title|name|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_manage_variants_button_text", "🎚 Manage Quality / Codec"), callback_data=f"adm|variants|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_delete_title_button_text", "🗑 Delete This Title"), callback_data=f"adm|delask|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_back_home_button_text", "⬅️ Admin Home"), callback_data="adm|home")],
+            [InlineKeyboardButton(ui_text(settings, "admin_poster_tools_button_text", "🖼 Poster Tools"), callback_data=f"adm|po|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_edit_name_button_text", "🎞 Edit Name"), callback_data=f"adm|tn|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_manage_variants_button_text", "🎚 Manage Quality / Codec"), callback_data=f"adm|va|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_delete_title_button_text", "🗑 Delete This Title"), callback_data=f"adm|dx|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_back_home_button_text", "⬅️ Admin Home"), callback_data="adm|hm")],
         ]
     )
 
@@ -169,10 +169,10 @@ def admin_title_keyboard(settings, title_id: str, media_type: str) -> InlineKeyb
 def admin_poster_keyboard(settings, title_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_auto_refresh_poster_button_text", "♻️ Auto Refresh Poster"), callback_data=f"adm|posterauto|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_remove_poster_button_text", "🧹 Remove Poster"), callback_data=f"adm|posterremove|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_manual_poster_url_button_text", "🔗 Set Manual Poster URL"), callback_data=f"adm|edit|title|poster|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|title|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_auto_refresh_poster_button_text", "♻️ Auto Refresh Poster"), callback_data=f"adm|pa|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_remove_poster_button_text", "🧹 Remove Poster"), callback_data=f"adm|pr|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_manual_poster_url_button_text", "🔗 Set Manual Poster URL"), callback_data=f"adm|tp|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|tt|{title_id}")],
         ]
     )
 
@@ -180,8 +180,8 @@ def admin_poster_keyboard(settings, title_id: str) -> InlineKeyboardMarkup:
 def admin_confirm_delete_title_keyboard(settings, title_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_confirm_delete_button_text", "✅ Yes, Delete"), callback_data=f"adm|deltitle|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_cancel_button_text", "❌ Cancel"), callback_data=f"adm|title|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_confirm_delete_button_text", "✅ Yes, Delete"), callback_data=f"adm|dt|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_cancel_button_text", "❌ Cancel"), callback_data=f"adm|tt|{title_id}")],
         ]
     )
 
@@ -190,18 +190,18 @@ def admin_variant_picker(settings, title_id: str, variants: list[dict]) -> Inlin
     rows: List[List[InlineKeyboardButton]] = []
     for item in variants[:20]:
         label = build_variant_label(item)
-        rows.append([InlineKeyboardButton(label[:60], callback_data=f"adm|variant|{title_id}|{item['_id']}")])
-    rows.append([InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|title|{title_id}")])
+        rows.append([InlineKeyboardButton(label[:60], callback_data=f"adm|vf|{item['_id']}")])
+    rows.append([InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|tt|{title_id}")])
     return InlineKeyboardMarkup(rows)
 
 
 def admin_variant_edit_keyboard(settings, title_id: str, media_file_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_change_quality_button_text", "📦 Change Quality"), callback_data=f"adm|q|{media_file_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_change_codec_button_text", "⚙️ Change Codec"), callback_data=f"adm|c|{media_file_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_delete_file_button_text", "🗑 Delete This File"), callback_data=f"adm|x|{title_id}|{media_file_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|variants|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_change_quality_button_text", "📦 Change Quality"), callback_data=f"adm|fq|{media_file_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_change_codec_button_text", "⚙️ Change Codec"), callback_data=f"adm|fc|{media_file_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_delete_file_button_text", "🗑 Delete This File"), callback_data=f"adm|fd|{media_file_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|va|{title_id}")],
         ]
     )
 
