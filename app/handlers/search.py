@@ -6,8 +6,8 @@ from pyrogram import filters
 from pyrogram.types import Message
 
 from app.bot import MovieBot
-from app.keyboards.browser import search_results_keyboard
-from app.utils.text import build_search_preview_caption
+from app.keyboards.browser import category_keyboard, search_results_keyboard
+from app.utils.text import build_search_hub_caption
 
 
 
@@ -27,22 +27,18 @@ async def _send_preview_card(bot: MovieBot, message: Message, query: str, items:
         await message.reply_text("Database එකේ matching result එකක් නැහැ.")
         return
 
-    best = active_items[0]
-    caption = build_search_preview_caption(
-        best,
+    caption = build_search_hub_caption(
+        bot.settings,
+        query,
         movie_count=len(movies),
         series_count=len(series),
         active_type=active_type,
     )
-    keyboard = search_results_keyboard(
-        active_items,
-        movie_count=len(movies),
-        series_count=len(series),
-        active_type=active_type,
-    )
+    keyboard = category_keyboard(bot.settings, movie_count=len(movies), series_count=len(series))
 
-    if best.get("poster_url"):
-        sent = await message.reply_photo(best["poster_url"], caption=caption, reply_markup=keyboard)
+    poster_url = bot.settings.search_hub_photo_url or bot.settings.browser_placeholder_photo_url or active_items[0].get("poster_url")
+    if poster_url:
+        sent = await message.reply_photo(poster_url, caption=caption, reply_markup=keyboard)
     else:
         sent = await message.reply_text(caption, reply_markup=keyboard)
 
@@ -92,3 +88,5 @@ async def auto_search_groups(bot: MovieBot, message: Message) -> None:
         query = query.split(maxsplit=1)[1] if len(query.split()) > 1 else query
 
     await _run_search(bot, message, query, media_type)
+
+```
