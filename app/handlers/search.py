@@ -89,4 +89,3 @@ async def auto_search_groups(bot: MovieBot, message: Message) -> None:
 
     await _run_search(bot, message, query, media_type)
 
-```
