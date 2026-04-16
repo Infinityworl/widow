@@ -496,7 +496,7 @@ async def admin_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
         )
         return
 
-    if action == "variant":
+    if action in {"variant", "v"}:
         title_id = parts[2]
         media_file_id = parts[3]
         media = await bot.db_service.get_media_file(media_file_id)
@@ -513,6 +513,43 @@ async def admin_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
             f"Episode: {media.get('episode', '-')}"
         )
         await query.message.reply_text(caption, reply_markup=admin_variant_edit_keyboard(bot.settings, title_id, media_file_id))
+        return
+
+    if action in {"q", "c"}:
+        media_file_id = parts[2]
+        media = await bot.db_service.get_media_file(media_file_id)
+        if not media:
+            await query.answer("Variant not found", show_alert=True)
+            return
+        title_id = str(media.get("title_id") or media.get("title_ref") or "")
+        field = "quality" if action == "q" else "codec"
+        bot.admin_states[user_id] = {
+            "mode": f"await_edit_file_{field}",
+            "title_id": title_id,
+            "media_file_id": media_file_id,
+        }
+        hint = (
+            "New quality (480p / 720p / 1080p / 2160p / 4K)"
+            if field == "quality"
+            else "New codec (x264 / x265 / H264 / H265 / HEVC / AV1)"
+        )
+        await query.answer()
+        await query.message.reply_text(f"Reply with: {hint}")
+        return
+
+    if action == "x":
+        title_id = parts[2]
+        media_file_id = parts[3]
+        await bot.db_service.delete_media_file(media_file_id)
+        remaining = await bot.db_service.list_title_variants(title_id)
+        await query.answer("File deleted")
+        if remaining:
+            await query.message.reply_text(
+                "✅ Selected file delete කළා. Remaining variants මෙන්න.",
+                reply_markup=admin_variant_picker(bot.settings, title_id, remaining),
+            )
+        else:
+            await query.message.reply_text("✅ File delete කළා. මේ title එකට තව variants නැහැ.")
         return
 
     if action == "delask":
