@@ -1,10 +1,31 @@
 from __future__ import annotations
 
+import logging
+
 from pyrogram import filters
+from pyrogram.errors import RPCError
 from pyrogram.types import Message
 
 from app.bot import MovieBot
 from app.utils.parser import parse_channel_message
+
+
+async def _safe_send_message(bot: MovieBot, chat_id: int | None, text: str) -> None:
+    if not chat_id:
+        return
+    try:
+        await bot.send_message(chat_id, text)
+    except (RPCError, ValueError, KeyError) as e:
+        logging.warning("Skipped send_message to %s: %s", chat_id, e)
+
+
+async def _safe_send_photo(bot: MovieBot, chat_id: int | None, photo: str, caption: str) -> None:
+    if not chat_id:
+        return
+    try:
+        await bot.send_photo(chat_id, photo, caption=caption)
+    except (RPCError, ValueError, KeyError) as e:
+        logging.warning("Skipped send_photo to %s: %s", chat_id, e)
 
 
 async def _announce_series(bot: MovieBot, title: dict, parsed) -> None:
@@ -18,21 +39,20 @@ async def _announce_series(bot: MovieBot, title: dict, parsed) -> None:
         f"⚙️ Codec: {parsed.codec}"
     )
     if title.get("poster_url"):
-        await bot.send_photo(bot.settings.series_info_channel_id, title["poster_url"], caption=caption)
+        await _safe_send_photo(bot, bot.settings.series_info_channel_id, title["poster_url"], caption)
     else:
-        await bot.send_message(bot.settings.series_info_channel_id, caption)
-
+        await _safe_send_message(bot, bot.settings.series_info_channel_id, caption)
 
 
 @MovieBot.on_message((filters.channel) & (filters.video | filters.document))
 async def ingest_channel_post(bot: MovieBot, message: Message) -> None:
     parsed = parse_channel_message(message)
     if not parsed or not parsed.title or parsed.title == "Unknown Title":
-        if bot.settings.log_chat_id:
-            await bot.send_message(
-                bot.settings.log_chat_id,
-                f"⚠️ Skipped channel post {message.chat.id}/{message.id} because title could not be parsed.",
-            )
+        await _safe_send_message(
+            bot,
+            bot.settings.log_chat_id,
+            f"⚠️ Skipped channel post {message.chat.id}/{message.id} because title could not be parsed.",
+        )
         return
 
     force_media_type = None
@@ -53,17 +73,18 @@ async def ingest_channel_post(bot: MovieBot, message: Message) -> None:
     result = await bot.catalog_service.ingest_parsed_media(parsed, force_media_type=force_media_type)
     title = result["title"]
     await _announce_series(bot, title, parsed)
-    if bot.settings.log_chat_id:
-        season_text = f" S{parsed.season}" if parsed.season is not None else ""
-        episode_text = f"E{parsed.episode}" if parsed.episode is not None else ""
-        await bot.send_message(
-            bot.settings.log_chat_id,
-            (
-                f"✅ Saved {title['media_type']}\n"
-                f"Title: {title['title']}\n"
-                f"Year: {title.get('year', '-')}\n"
-                f"Quality: {parsed.quality}\n"
-                f"Codec: {parsed.codec}\n"
-                f"Part: {(season_text + episode_text).strip() or '-'}"
-            ),
-        )
+
+    season_text = f" S{parsed.season}" if parsed.season is not None else ""
+    episode_text = f"E{parsed.episode}" if parsed.episode is not None else ""
+    await _safe_send_message(
+        bot,
+        bot.settings.log_chat_id,
+        (
+            f"✅ Saved {title['media_type']}\n"
+            f"Title: {title['title']}\n"
+            f"Year: {title.get('year', '-')}\n"
+            f"Quality: {parsed.quality}\n"
+            f"Codec: {parsed.codec}\n"
+            f"Part: {(season_text + episode_text).strip() or '-'}"
+        ),
+    )
