@@ -182,4 +182,3 @@ def get_settings() -> Settings:
         admin_change_codec_button_text=os.getenv("ADMIN_CHANGE_CODEC_BUTTON_TEXT", "⚙️ Change Codec"),
         admin_delete_file_button_text=os.getenv("ADMIN_DELETE_FILE_BUTTON_TEXT", "🗑 Delete This File"),
     )
-
