@@ -40,8 +40,7 @@ def search_results_keyboard(
 ) -> InlineKeyboardMarkup:
     rows: List[List[InlineKeyboardButton]] = [[*_category_row(settings, movie_count=movie_count, series_count=series_count)]]
 
-    if page < 0:
-        page = 0
+    page = max(0, page)
     total_count = len(items)
     start = page * page_size
     end = start + page_size
@@ -111,7 +110,23 @@ def qualities_keyboard(settings, title_id: str, qualities: Iterable[str], *, sea
     return InlineKeyboardMarkup(rows)
 
 
-def movie_variants_keyboard(settings, title_id: str, quality: str, items: list[dict], *, page: int = 0, page_size: int = SELECTOR_PAGE_SIZE) -> InlineKeyboardMarkup:
+def movie_variants_keyboard(settings, title_id: str, *args, page: int = 0, page_size: int = SELECTOR_PAGE_SIZE) -> InlineKeyboardMarkup:
+    """Compatibility wrapper.
+
+    Supports both old and new call styles:
+      movie_variants_keyboard(settings, title_id, items)
+      movie_variants_keyboard(settings, title_id, quality, items, page=0)
+    """
+    quality = ""
+    items: list[dict]
+    if len(args) == 1:
+        items = list(args[0] or [])
+    elif len(args) >= 2:
+        quality = str(args[0] or "")
+        items = list(args[1] or [])
+    else:
+        items = []
+
     start = max(0, page) * page_size
     end = start + page_size
     page_items = items[start:end]
@@ -123,11 +138,13 @@ def movie_variants_keyboard(settings, title_id: str, quality: str, items: list[d
                 callback_data=encode(["mv", title_id, str(item["_id"])]),
             )
         ])
+
     nav: List[InlineKeyboardButton] = []
-    if page > 0:
-        nav.append(InlineKeyboardButton(ui_text(settings, "prev_button_text", "⬅️ Prev"), callback_data=encode(["mvp", title_id, quality, page - 1])))
-    if end < len(items):
-        nav.append(InlineKeyboardButton(ui_text(settings, "next_button_text", "Next ➡️"), callback_data=encode(["mvp", title_id, quality, page + 1])))
+    if quality:
+        if page > 0:
+            nav.append(InlineKeyboardButton(ui_text(settings, "prev_button_text", "⬅️ Prev"), callback_data=encode(["mvp", title_id, quality, page - 1])))
+        if end < len(items):
+            nav.append(InlineKeyboardButton(ui_text(settings, "next_button_text", "Next ➡️"), callback_data=encode(["mvp", title_id, quality, page + 1])))
     if nav:
         rows.append(nav)
     return InlineKeyboardMarkup(rows)
@@ -162,7 +179,27 @@ def season_episodes_keyboard(settings, title_id: str, season: int, episodes: lis
     return InlineKeyboardMarkup(rows)
 
 
-def episode_variants_keyboard(settings, title_id: str, season: int, episode: int, quality: str, items: list[dict], *, page: int = 0, page_size: int = SELECTOR_PAGE_SIZE) -> InlineKeyboardMarkup:
+def episode_variants_keyboard(settings, title_id: str, *args, page: int = 0, page_size: int = SELECTOR_PAGE_SIZE) -> InlineKeyboardMarkup:
+    """Compatibility wrapper.
+
+    Supports both old and new call styles:
+      episode_variants_keyboard(settings, title_id, items)
+      episode_variants_keyboard(settings, title_id, season, episode, quality, items, page=0)
+    """
+    season = None
+    episode = None
+    quality = ""
+    items: list[dict]
+    if len(args) == 1:
+        items = list(args[0] or [])
+    elif len(args) >= 4:
+        season = args[0]
+        episode = args[1]
+        quality = str(args[2] or "")
+        items = list(args[3] or [])
+    else:
+        items = []
+
     start = max(0, page) * page_size
     end = start + page_size
     rows: List[List[InlineKeyboardButton]] = []
@@ -174,10 +211,11 @@ def episode_variants_keyboard(settings, title_id: str, season: int, episode: int
             )
         ])
     nav: List[InlineKeyboardButton] = []
-    if page > 0:
-        nav.append(InlineKeyboardButton(ui_text(settings, "prev_button_text", "⬅️ Prev"), callback_data=encode(["evp", title_id, season, episode, quality, page - 1])))
-    if end < len(items):
-        nav.append(InlineKeyboardButton(ui_text(settings, "next_button_text", "Next ➡️"), callback_data=encode(["evp", title_id, season, episode, quality, page + 1])))
+    if quality and season is not None and episode is not None:
+        if page > 0:
+            nav.append(InlineKeyboardButton(ui_text(settings, "prev_button_text", "⬅️ Prev"), callback_data=encode(["evp", title_id, season, episode, quality, page - 1])))
+        if end < len(items):
+            nav.append(InlineKeyboardButton(ui_text(settings, "next_button_text", "Next ➡️"), callback_data=encode(["evp", title_id, season, episode, quality, page + 1])))
     if nav:
         rows.append(nav)
     return InlineKeyboardMarkup(rows)
@@ -192,10 +230,10 @@ def download_keyboard(settings, title_id: str, media_file_id: str) -> InlineKeyb
 def admin_home_keyboard(settings) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_manage_movies_button_text", "🎬 Manage Movies"), callback_data="adm|fm|movie")],
-            [InlineKeyboardButton(ui_text(settings, "admin_manage_series_button_text", "📺 Manage Series"), callback_data="adm|fm|series")],
-            [InlineKeyboardButton(ui_text(settings, "admin_sync_series_button_text", "📥 Sync Series Post"), callback_data="adm|sy|series")],
-            [InlineKeyboardButton(ui_text(settings, "admin_sync_movie_button_text", "📥 Sync Movie Post"), callback_data="adm|sy|movie")],
+            [InlineKeyboardButton(ui_text(settings, "admin_manage_movies_button_text", "🎬 Manage Movies"), callback_data="adm|find|movie")],
+            [InlineKeyboardButton(ui_text(settings, "admin_manage_series_button_text", "📺 Manage Series"), callback_data="adm|find|series")],
+            [InlineKeyboardButton(ui_text(settings, "admin_sync_series_button_text", "📥 Sync Series Post"), callback_data="adm|sync|series")],
+            [InlineKeyboardButton(ui_text(settings, "admin_sync_movie_button_text", "📥 Sync Movie Post"), callback_data="adm|sync|movie")],
         ]
     )
 
@@ -208,19 +246,19 @@ def admin_pick_title_keyboard(settings, items: list[dict]) -> InlineKeyboardMark
             label = ui_text(settings, "series_title_button_text", "📺 {title}{year_label}", title=item.get("title", "Unknown"), year=item.get("year"), year_label=year_label)
         else:
             label = ui_text(settings, "movie_title_button_text", "🎞 {title}{year_label}", title=item.get("title", "Unknown"), year=item.get("year"), year_label=year_label)
-        rows.append([InlineKeyboardButton(label[:60], callback_data=f"adm|tt|{item['_id']}")])
-    rows.append([InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data="adm|hm")])
+        rows.append([InlineKeyboardButton(label[:60], callback_data=f"adm|title|{item['_id']}")])
+    rows.append([InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data="adm|home")])
     return InlineKeyboardMarkup(rows)
 
 
 def admin_title_keyboard(settings, title_id: str, media_type: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_poster_tools_button_text", "🖼 Poster Tools"), callback_data=f"adm|po|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_edit_name_button_text", "🎞 Edit Name"), callback_data=f"adm|tn|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_manage_variants_button_text", "🎚 Manage Quality / Codec"), callback_data=f"adm|va|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_delete_title_button_text", "🗑 Delete This Title"), callback_data=f"adm|dx|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_back_home_button_text", "⬅️ Admin Home"), callback_data="adm|hm")],
+            [InlineKeyboardButton(ui_text(settings, "admin_poster_tools_button_text", "🖼 Poster Tools"), callback_data=f"adm|poster|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_edit_name_button_text", "🎞 Edit Name"), callback_data=f"adm|edit|title|name|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_manage_variants_button_text", "🎚 Manage Quality / Codec"), callback_data=f"adm|variants|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_delete_title_button_text", "🗑 Delete This Title"), callback_data=f"adm|delask|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_back_home_button_text", "⬅️ Admin Home"), callback_data="adm|home")],
         ]
     )
 
@@ -228,10 +266,10 @@ def admin_title_keyboard(settings, title_id: str, media_type: str) -> InlineKeyb
 def admin_poster_keyboard(settings, title_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_auto_refresh_poster_button_text", "♻️ Auto Refresh Poster"), callback_data=f"adm|pa|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_remove_poster_button_text", "🧹 Remove Poster"), callback_data=f"adm|pr|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_manual_poster_url_button_text", "🔗 Set Manual Poster URL"), callback_data=f"adm|tp|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|tt|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_auto_refresh_poster_button_text", "♻️ Auto Refresh Poster"), callback_data=f"adm|posterauto|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_remove_poster_button_text", "🧹 Remove Poster"), callback_data=f"adm|posterremove|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_manual_poster_url_button_text", "🔗 Set Manual Poster URL"), callback_data=f"adm|edit|title|poster|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|title|{title_id}")],
         ]
     )
 
@@ -239,8 +277,8 @@ def admin_poster_keyboard(settings, title_id: str) -> InlineKeyboardMarkup:
 def admin_confirm_delete_title_keyboard(settings, title_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_confirm_delete_button_text", "✅ Yes, Delete"), callback_data=f"adm|dt|{title_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_cancel_button_text", "❌ Cancel"), callback_data=f"adm|tt|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_confirm_delete_button_text", "✅ Yes, Delete"), callback_data=f"adm|deltitle|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_cancel_button_text", "❌ Cancel"), callback_data=f"adm|title|{title_id}")],
         ]
     )
 
@@ -249,17 +287,17 @@ def admin_variant_picker(settings, title_id: str, variants: list[dict]) -> Inlin
     rows: List[List[InlineKeyboardButton]] = []
     for item in variants[:20]:
         label = build_variant_label(item)
-        rows.append([InlineKeyboardButton(label[:60], callback_data=f"adm|vf|{item['_id']}")])
-    rows.append([InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|tt|{title_id}")])
+        rows.append([InlineKeyboardButton(label[:60], callback_data=f"adm|variant|{title_id}|{item['_id']}")])
+    rows.append([InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|title|{title_id}")])
     return InlineKeyboardMarkup(rows)
 
 
 def admin_variant_edit_keyboard(settings, title_id: str, media_file_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton(ui_text(settings, "admin_change_quality_button_text", "📦 Change Quality"), callback_data=f"adm|fq|{media_file_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_change_codec_button_text", "⚙️ Change Codec"), callback_data=f"adm|fc|{media_file_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_delete_file_button_text", "🗑 Delete This File"), callback_data=f"adm|fd|{media_file_id}")],
-            [InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|va|{title_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_change_quality_button_text", "📦 Change Quality"), callback_data=f"adm|edit|file|quality|{title_id}|{media_file_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_change_codec_button_text", "⚙️ Change Codec"), callback_data=f"adm|edit|file|codec|{title_id}|{media_file_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_delete_file_button_text", "🗑 Delete This File"), callback_data=f"adm|delfile|{title_id}|{media_file_id}")],
+            [InlineKeyboardButton(ui_text(settings, "admin_back_button_text", "⬅️ Back"), callback_data=f"adm|variants|{title_id}")],
         ]
     )
