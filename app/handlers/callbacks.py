@@ -595,7 +595,5 @@ async def admin_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
 
     await query.answer("Unknown admin action", show_alert=True)
 
-```
-
 
 
