@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import re
 
 from pyrogram import filters
 from pyrogram.errors import RPCError
@@ -58,7 +57,6 @@ async def _render_card(
             await query.message.reply_text(caption, reply_markup=reply_markup)
 
 
-
 def _get_search_session(bot: MovieBot, query: CallbackQuery) -> dict | None:
     if not query.message:
         return None
@@ -77,92 +75,24 @@ async def _ensure_owner(bot: MovieBot, query: CallbackQuery) -> bool:
     return True
 
 
-
 def _stage_photo(bot: MovieBot, title: dict | None = None, *, stage: str = "search", final: bool = False) -> str | None:
     if final and title and title.get("poster_url"):
         return title.get("poster_url")
     stage_map = {
-        "search": getattr(bot.settings, "search_hub_photo_url", None),
-        "title": getattr(bot.settings, "title_pick_photo_url", None),
-        "season": getattr(bot.settings, "season_pick_photo_url", None),
-        "quality": getattr(bot.settings, "quality_pick_photo_url", None),
-        "codec": getattr(bot.settings, "codec_pick_photo_url", None),
-        "episode": getattr(bot.settings, "episode_pick_photo_url", None),
+        "search": bot.settings.search_hub_photo_url,
+        "title": bot.settings.title_pick_photo_url,
+        "season": bot.settings.season_pick_photo_url,
+        "quality": bot.settings.quality_pick_photo_url,
+        "codec": bot.settings.codec_pick_photo_url,
+        "episode": bot.settings.episode_pick_photo_url,
     }
     if stage_map.get(stage):
         return stage_map[stage]
-    if getattr(bot.settings, "browser_placeholder_photo_url", None):
+    if bot.settings.browser_placeholder_photo_url:
         return bot.settings.browser_placeholder_photo_url
     if title:
         return title.get("poster_url")
     return None
-
-
-def _clean_search_title(text: str) -> str:
-    if not text:
-        return ""
-    candidate = re.sub(r"\.[A-Za-z0-9]{2,4}$", "", text)
-    candidate = re.sub(r"\[[^\]]*\]", " ", candidate)
-    candidate = re.sub(r"\([^)]*\)", " ", candidate)
-    candidate = re.sub(r"[_.+]+", " ", candidate)
-    candidate = re.sub(r"\bS\d{1,2}E\d{1,3}\b", " ", candidate, flags=re.I)
-    candidate = re.sub(r"\bSeason\s*\d{1,2}\b", " ", candidate, flags=re.I)
-    candidate = re.sub(r"\bEpisode\s*\d{1,3}\b", " ", candidate, flags=re.I)
-    candidate = re.sub(r"\b(19\d{2}|20\d{2}|21\d{2})\b", " ", candidate)
-    candidate = re.sub(r"\b(?:480p|576p|720p|1080p|1440p|2160p|4k|uhd|10bit|8bit|hdr|x264|x265|h264|h265|hevc|av1|bluray|brrip|bdrip|webrip|web[- ._]?dl|web[- ._]?rip|hdrip|dvdrip|aac|ddp(?:5\.1|7\.1)?|ac3|dts(?:[- ._]?hd)?|truehd|6ch|2ch|5\.1|7\.1|mkv|mp4|avi|mov|psa|yts|ytsmx|rarbg|galaxyrg|evo|ettv|tgx|pahe|imax|proper|repack|extended|uncut|amzn|nf|dsnp|hmax|sample|trailer|esub|subbed|sinhala[- ._]?sub|english[- ._]?sub|multi|dual[- ._]?audio|hq|sd|hd|fhd|complete)\b", " ", candidate, flags=re.I)
-    candidate = re.sub(r"\b\d+(?:\.\d+)?(?:gb|mb)\b", " ", candidate, flags=re.I)
-    candidate = re.sub(r"\s+", " ", candidate).strip(" -_.")
-    return candidate
-
-
-def _candidate_titles(title: dict | None, item: dict | None = None) -> list[str]:
-    candidates: list[str] = []
-    values = []
-    if title:
-        values.extend([title.get("title")])
-    if item:
-        values.extend([item.get("parsed_title"), item.get("title"), item.get("original_filename"), item.get("file_name")])
-    seen = set()
-    for value in values:
-        if not value or not isinstance(value, str):
-            continue
-        for cand in [value.strip(), _clean_search_title(value)]:
-            key = cand.lower().strip()
-            if key and key not in seen:
-                seen.add(key)
-                candidates.append(cand.strip())
-    return candidates
-
-
-async def _ensure_title_poster(bot: MovieBot, title: dict | None, item: dict | None = None) -> dict | None:
-    if not title:
-        return title
-    if title.get("poster_url"):
-        return title
-
-    metadata = None
-    for cand in _candidate_titles(title, item) or [title.get("title", "")]:
-        try:
-            metadata = await bot.metadata_service.search(cand, title.get("media_type", "movie"), title.get("year"))
-        except Exception as exc:
-            logging.warning("Poster refresh lookup failed for %s: %s", cand, exc)
-            metadata = None
-        if metadata and metadata.get("poster_url"):
-            break
-
-    if metadata and metadata.get("poster_url"):
-        updates = {
-            "poster_url": metadata.get("poster_url"),
-            "poster_source": metadata.get("poster_source"),
-            "overview": metadata.get("overview") or title.get("overview"),
-            "vote_average": metadata.get("vote_average") or title.get("vote_average"),
-        }
-        try:
-            await bot.db_service.update_title_fields(str(title["_id"]), updates)
-        except Exception as exc:
-            logging.warning("Poster DB update failed for %s: %s", title.get("title"), exc)
-        title.update({k: v for k, v in updates.items() if v is not None})
-    return title
 
 
 def _series_variant_caption(bot: MovieBot, title: dict, *, season: int, episode: int, quality: str) -> str:
@@ -194,32 +124,33 @@ def _series_variant_caption(bot: MovieBot, title: dict, *, season: int, episode:
     return "\n".join(lines)
 
 
-async def _show_search_category(bot: MovieBot, query: CallbackQuery, media_type: str, page: int = 0) -> None:
+async def _show_search_category(bot: MovieBot, query: CallbackQuery, media_type: str) -> None:
     session = _get_search_session(bot, query)
     if not session:
         await query.answer("Search session expired", show_alert=True)
         return
 
     title_ids = session.get("movies", []) if media_type == "movie" else session.get("series", [])
+    if not title_ids:
+        await query.answer(f"No {media_type} results", show_alert=True)
+        return
+
     items: list[dict] = []
     for title_id in title_ids:
         title = await bot.db_service.get_title(title_id)
         if title:
             items.append(title)
 
+    if not items:
+        await query.answer("Results not found", show_alert=True)
+        return
+
     movie_count = len(session.get("movies", []))
     series_count = len(session.get("series", []))
-    page_size = max(1, int(getattr(bot.settings, "result_page_size", 6) or 6))
-    max_page = max((len(items) - 1) // page_size, 0) if items else 0
-    page = max(0, min(page, max_page))
-
-    poster_title = items[page * page_size] if items and page * page_size < len(items) else None
-    poster_title = await _ensure_title_poster(bot, poster_title)
-
     await query.answer()
     await _render_card(
         query,
-        poster_url=_stage_photo(bot, poster_title, stage="title"),
+        poster_url=_stage_photo(bot, items[0], stage="title"),
         caption=build_search_hub_caption(
             session.get("query", "Search"),
             movie_count=movie_count,
@@ -232,14 +163,11 @@ async def _show_search_category(bot: MovieBot, query: CallbackQuery, media_type:
             movie_count=movie_count,
             series_count=series_count,
             active_type=media_type,
-            page=page,
-            page_size=page_size,
         ),
     )
 
 
 async def _show_series_seasons(bot: MovieBot, query: CallbackQuery, title: dict) -> None:
-    title = await _ensure_title_poster(bot, title)
     seasons = await bot.db_service.get_available_seasons(str(title["_id"]))
     if not seasons:
         await query.answer("මේ series එකට season data නැහැ.", show_alert=True)
@@ -253,7 +181,6 @@ async def _show_series_seasons(bot: MovieBot, query: CallbackQuery, title: dict)
 
 
 async def _show_series_episode_page(bot: MovieBot, query: CallbackQuery, title: dict, *, season: int, page: int = 0) -> None:
-    title = await _ensure_title_poster(bot, title)
     page_size = bot.settings.result_page_size
     episodes = await bot.db_service.get_available_episode_numbers(
         str(title["_id"]),
@@ -274,7 +201,6 @@ async def _show_series_episode_page(bot: MovieBot, query: CallbackQuery, title: 
 
 
 async def _show_series_episode_qualities(bot: MovieBot, query: CallbackQuery, title: dict, *, season: int, episode: int) -> None:
-    title = await _ensure_title_poster(bot, title)
     qualities = await bot.db_service.get_episode_qualities(str(title["_id"]), season, episode)
     if not qualities:
         await query.answer("මේ episode එකට qualities නැහැ.", show_alert=True)
@@ -283,12 +209,11 @@ async def _show_series_episode_qualities(bot: MovieBot, query: CallbackQuery, ti
         query,
         poster_url=_stage_photo(bot, title, stage="quality"),
         caption=build_stage_caption(bot.settings, title, stage="quality", season=season, episode=episode),
-        reply_markup=qualities_keyboard(bot.settings, str(title["_id"]), qualities, season=season, episode=episode, page=0),
+        reply_markup=qualities_keyboard(bot.settings, str(title["_id"]), qualities, season=season, episode=episode),
     )
 
 
 async def _show_series_variants(bot: MovieBot, query: CallbackQuery, title: dict, *, season: int, episode: int, quality: str) -> None:
-    title = await _ensure_title_poster(bot, title)
     variants = await bot.db_service.list_episode_variants(str(title["_id"]), season, episode, quality)
     if not variants:
         await query.answer("Episode files not found", show_alert=True)
@@ -297,12 +222,11 @@ async def _show_series_variants(bot: MovieBot, query: CallbackQuery, title: dict
         query,
         poster_url=_stage_photo(bot, title, final=True),
         caption=_series_variant_caption(bot, title, season=season, episode=episode, quality=quality),
-        reply_markup=episode_variants_keyboard(bot.settings, str(title["_id"]), season, episode, quality, variants, page=0),
+        reply_markup=episode_variants_keyboard(bot.settings, str(title["_id"]), variants),
     )
 
 
 async def _show_movie_selector(bot: MovieBot, query: CallbackQuery, title: dict, *, quality: str | None = None) -> None:
-    title = await _ensure_title_poster(bot, title)
     title_id = str(title["_id"])
     if quality is None:
         qualities = await bot.db_service.get_available_qualities(title_id)
@@ -310,7 +234,7 @@ async def _show_movie_selector(bot: MovieBot, query: CallbackQuery, title: dict,
             query,
             poster_url=_stage_photo(bot, title, stage="quality"),
             caption=build_stage_caption(bot.settings, title, stage="quality"),
-            reply_markup=qualities_keyboard(bot.settings, title_id, qualities, page=0),
+            reply_markup=qualities_keyboard(bot.settings, title_id, qualities),
         )
         return
 
@@ -322,69 +246,11 @@ async def _show_movie_selector(bot: MovieBot, query: CallbackQuery, title: dict,
         query,
         poster_url=_stage_photo(bot, title, stage="codec"),
         caption=build_stage_caption(bot.settings, title, stage="codec", quality=quality),
-        reply_markup=movie_variants_keyboard(bot.settings, title_id, quality or "", variants, page=0),
-    )
-
-
-
-
-async def _show_movie_qualities_page(bot: MovieBot, query: CallbackQuery, title: dict, page: int) -> None:
-    title = await _ensure_title_poster(bot, title)
-    title_id = str(title["_id"])
-    qualities = await bot.db_service.get_available_qualities(title_id)
-    await _render_card(
-        query,
-        poster_url=_stage_photo(bot, title, stage="quality"),
-        caption=build_stage_caption(bot.settings, title, stage="quality"),
-        reply_markup=qualities_keyboard(bot.settings, title_id, qualities, page=page),
-    )
-
-
-async def _show_movie_variants_page(bot: MovieBot, query: CallbackQuery, title: dict, quality: str, page: int) -> None:
-    title = await _ensure_title_poster(bot, title)
-    title_id = str(title["_id"])
-    variants = await bot.db_service.list_movie_variants(title_id, quality)
-    if not variants:
-        await query.answer("Movie variants not found", show_alert=True)
-        return
-    await _render_card(
-        query,
-        poster_url=_stage_photo(bot, title, stage="codec"),
-        caption=build_stage_caption(bot.settings, title, stage="codec", quality=quality),
-        reply_markup=movie_variants_keyboard(bot.settings, title_id, quality, variants, page=page),
-    )
-
-
-async def _show_series_quality_page(bot: MovieBot, query: CallbackQuery, title: dict, *, season: int, episode: int, page: int) -> None:
-    title = await _ensure_title_poster(bot, title)
-    qualities = await bot.db_service.get_episode_qualities(str(title["_id"]), season, episode)
-    if not qualities:
-        await query.answer("මේ episode එකට qualities නැහැ.", show_alert=True)
-        return
-    await _render_card(
-        query,
-        poster_url=_stage_photo(bot, title, stage="quality"),
-        caption=build_stage_caption(bot.settings, title, stage="quality", season=season, episode=episode),
-        reply_markup=qualities_keyboard(bot.settings, str(title["_id"]), qualities, season=season, episode=episode, page=page),
-    )
-
-
-async def _show_series_variants_page(bot: MovieBot, query: CallbackQuery, title: dict, *, season: int, episode: int, quality: str, page: int) -> None:
-    title = await _ensure_title_poster(bot, title)
-    variants = await bot.db_service.list_episode_variants(str(title["_id"]), season, episode, quality)
-    if not variants:
-        await query.answer("Episode files not found", show_alert=True)
-        return
-    await _render_card(
-        query,
-        poster_url=_stage_photo(bot, title, final=True),
-        caption=_series_variant_caption(bot, title, season=season, episode=episode, quality=quality),
-        reply_markup=episode_variants_keyboard(bot.settings, str(title["_id"]), season, episode, quality, variants, page=page),
+        reply_markup=movie_variants_keyboard(bot.settings, title_id, variants),
     )
 
 
 async def _show_download_ready(bot: MovieBot, query: CallbackQuery, title: dict, item: dict) -> None:
-    title = await _ensure_title_poster(bot, title)
     caption = build_stage_caption(
         bot.settings,
         title,
@@ -403,9 +269,22 @@ async def _show_download_ready(bot: MovieBot, query: CallbackQuery, title: dict,
     )
 
 
+def _extract_cached_file_id(item: dict) -> str | None:
+    for key in (
+        "telegram_file_id",
+        "file_id",
+        "cached_file_id",
+        "telegram_video_file_id",
+        "telegram_document_file_id",
+    ):
+        value = item.get(key)
+        if value:
+            return str(value)
+    return None
+
+
 async def _send_private_copy(bot: MovieBot, query: CallbackQuery, item: dict, title: dict) -> None:
     user_id = query.from_user.id
-    title = await _ensure_title_poster(bot, title, item)
     poster_url = title.get("poster_url")
     intro_caption = build_inbox_intro_caption(
         title,
@@ -418,35 +297,59 @@ async def _send_private_copy(bot: MovieBot, query: CallbackQuery, item: dict, ti
 
     try:
         if poster_url:
-            try:
-                await bot.send_photo(user_id, poster_url, caption=intro_caption)
-            except RPCError:
-                await bot.send_message(user_id, intro_caption)
+            await bot.send_photo(user_id, poster_url, caption=intro_caption)
         else:
             await bot.send_message(user_id, intro_caption)
+    except RPCError as exc:
+        logging.warning("Inbox intro send failed for %s: %s", title.get("title"), exc)
+        try:
+            await bot.send_message(user_id, intro_caption)
+        except RPCError:
+            await query.answer("Open the bot in private chat first", show_alert=True)
+            return
 
-        copied = None
+    copied = None
+    source_chat_id = item.get("source_chat_id")
+    source_message_id = item.get("source_message_id")
+
+    if source_chat_id and source_message_id:
         try:
             copied = await bot.copy_message(
                 chat_id=user_id,
-                from_chat_id=item["source_chat_id"],
-                message_id=item["source_message_id"],
+                from_chat_id=source_chat_id,
+                message_id=source_message_id,
             )
-        except RPCError:
-            telegram_file_id = item.get("telegram_file_id")
-            if telegram_file_id:
-                copied = await bot.send_cached_media(user_id, telegram_file_id)
-            else:
-                raise
+        except Exception as exc:
+            logging.warning(
+                "copy_message failed for title=%s source_chat=%s source_msg=%s: %s",
+                title.get("title"),
+                source_chat_id,
+                source_message_id,
+                exc,
+            )
 
+    if copied is None:
+        cached_file_id = _extract_cached_file_id(item)
+        if cached_file_id:
+            try:
+                copied = await bot.send_cached_media(user_id, cached_file_id)
+            except Exception as exc:
+                logging.warning("send_cached_media failed for %s: %s", title.get("title"), exc)
+
+    if copied is None:
+        await query.answer("File එක send කරන්න බැරි වුණා. Source channel ID හෝ access check කරන්න.", show_alert=True)
+        return
+
+    try:
         await bot.send_message(
             user_id,
             build_inbox_reply_text(title),
-            reply_to_message_id=copied.id if copied else None,
+            reply_to_message_id=copied.id,
         )
-        await query.answer()
-    except RPCError:
-        await query.answer("Open the bot in private chat first", show_alert=True)
+    except RPCError as exc:
+        logging.warning("Inbox reply text failed for %s: %s", title.get("title"), exc)
+
+    await query.answer()
 
 
 def _is_admin(bot: MovieBot, query: CallbackQuery) -> bool:
@@ -468,7 +371,7 @@ async def _admin_show_title(bot: MovieBot, query: CallbackQuery, title_id: str) 
     )
 
 
-@MovieBot.on_callback_query(filters.regex(r"^(st|pick|mq|mqp|mvp|mv|dl|ss|sp|se|eq|eqp|evp|ev)\|"))
+@MovieBot.on_callback_query(filters.regex(r"^(st|pick|mq|mv|dl|ss|sp|se|eq|ev)\|"))
 async def user_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
     if not await _ensure_owner(bot, query):
         return
@@ -480,7 +383,7 @@ async def user_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
         return
 
     if payload.action == "st":
-        await _show_search_category(bot, query, payload.media_type or "movie", payload.page or 0)
+        await _show_search_category(bot, query, payload.media_type or "movie")
         return
 
     title = None
@@ -501,16 +404,6 @@ async def user_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
     if payload.action == "mq":
         await query.answer()
         await _show_movie_selector(bot, query, title, quality=payload.quality or "")
-        return
-
-    if payload.action == "mqp":
-        await query.answer()
-        await _show_movie_qualities_page(bot, query, title, payload.page or 0)
-        return
-
-    if payload.action == "mvp":
-        await query.answer()
-        await _show_movie_variants_page(bot, query, title, payload.quality or "", payload.page or 0)
         return
 
     if payload.action == "mv":
@@ -549,16 +442,6 @@ async def user_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
         )
         return
 
-    if payload.action == "eqp":
-        await query.answer()
-        await _show_series_quality_page(bot, query, title, season=payload.season or 1, episode=payload.episode or 1, page=payload.page or 0)
-        return
-
-    if payload.action == "evp":
-        await query.answer()
-        await _show_series_variants_page(bot, query, title, season=payload.season or 1, episode=payload.episode or 1, quality=payload.quality or "", page=payload.page or 0)
-        return
-
     if payload.action == "ev":
         item = await bot.catalog_service.get_media_file_by_id(payload.media_file_id or "")
         if not item:
@@ -586,13 +469,6 @@ async def admin_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
     parts = (query.data or "").split("|")
     action = parts[1] if len(parts) > 1 else ""
     user_id = query.from_user.id
-
-    action_aliases = {
-        "hm": "home", "fm": "find", "sy": "sync", "tt": "title", "po": "poster", "pa": "posterauto",
-        "pr": "posterremove", "va": "variants", "vf": "variant", "dx": "delask", "dt": "deltitle",
-        "fd": "delfile", "tn": "edit_title_name", "tp": "edit_title_poster", "fq": "edit_file_quality", "fc": "edit_file_codec",
-    }
-    action = action_aliases.get(action, action)
 
     if action == "home":
         bot.admin_states.pop(user_id, None)
@@ -675,16 +551,8 @@ async def admin_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
         return
 
     if action == "variant":
-        if len(parts) > 3:
-            title_id = parts[2]
-            media_file_id = parts[3]
-        else:
-            media_file_id = parts[2]
-            media = await bot.db_service.get_media_file(media_file_id)
-            if not media:
-                await query.answer("Variant not found", show_alert=True)
-                return
-            title_id = str(media.get("title_id") or "")
+        title_id = parts[2]
+        media_file_id = parts[3]
         media = await bot.db_service.get_media_file(media_file_id)
         if not media:
             await query.answer("Variant not found", show_alert=True)
@@ -741,56 +609,6 @@ async def admin_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
             await query.message.reply_text("✅ File delete කළා. මේ title එකට තව variants නැහැ.")
         return
 
-    if action in {"efq", "efc", "df"}:
-        short_title_id = parts[2]
-        short_media_id = parts[3]
-        variants = []
-        target_title_id = None
-        target_media = None
-        for t in await bot.db_service.search_titles("", media_type=None, limit=200):
-            if str(t["_id"]).endswith(short_title_id):
-                title_id_candidate = str(t["_id"])
-                candidate_variants = await bot.db_service.list_title_variants(title_id_candidate)
-                for item in candidate_variants:
-                    if str(item["_id"]).endswith(short_media_id):
-                        target_title_id = title_id_candidate
-                        target_media = item
-                        variants = candidate_variants
-                        break
-                if target_media:
-                    break
-        if not target_title_id or not target_media:
-            await query.answer("Variant not found", show_alert=True)
-            return
-
-        if action == "df":
-            await bot.db_service.delete_media_file(str(target_media["_id"]))
-            remaining = await bot.db_service.list_title_variants(target_title_id)
-            await query.answer("File deleted")
-            if remaining:
-                await query.message.reply_text(
-                    "✅ Selected file delete කළා. Remaining variants මෙන්න.",
-                    reply_markup=admin_variant_picker(bot.settings, target_title_id, remaining),
-                )
-            else:
-                await query.message.reply_text("✅ File delete කළා. මේ title එකට තව variants නැහැ.")
-            return
-
-        field = "quality" if action == "efq" else "codec"
-        bot.admin_states[user_id] = {
-            "mode": f"await_edit_file_{field}",
-            "title_id": target_title_id,
-            "media_file_id": str(target_media["_id"]),
-        }
-        hint = (
-            "New quality (480p / 720p / 1080p / 2160p / 4K)"
-            if field == "quality"
-            else "New codec (x264 / x265 / H264 / H265 / HEVC / AV1)"
-        )
-        await query.answer()
-        await query.message.reply_text(f"Reply with: {hint}")
-        return
-
     if action == "edit":
         target = parts[2]
         field = parts[3]
@@ -830,3 +648,6 @@ async def admin_callback_router(bot: MovieBot, query: CallbackQuery) -> None:
         return
 
     await query.answer("Unknown admin action", show_alert=True)
+
+
+
