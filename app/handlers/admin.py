@@ -54,7 +54,7 @@ async def _show_title_admin_card(bot: MovieBot, message: Message, title: dict) -
     from app.keyboards.browser import admin_title_keyboard
 
     caption = build_admin_title_caption(title)
-    keyboard = admin_title_keyboard(str(title["_id"]), title.get("media_type", "movie"))
+    keyboard = admin_title_keyboard(bot.settings, str(title["_id"]), title.get("media_type", "movie"))
     if title.get("poster_url"):
         await message.reply_photo(title["poster_url"], caption=caption, reply_markup=keyboard)
     else:
@@ -69,7 +69,7 @@ async def admin_panel(bot: MovieBot, message: Message) -> None:
     bot.admin_states.pop(message.from_user.id, None)
     await message.reply_text(
         "🛠 Admin panel\n\nMovie/Series manage කරන්න button එකක් ඔබන්න.",
-        reply_markup=admin_home_keyboard(),
+        reply_markup=admin_home_keyboard(bot.settings),
     )
 
 
@@ -145,7 +145,7 @@ async def admin_text_router(bot: MovieBot, message: Message) -> None:
         if not items:
             await message.reply_text("Result හම්බුනේ නැහැ. වෙන title එකක් දාලා බලන්න.")
             return
-        await message.reply_text("Edit කරන්න title එකක් තෝරන්න.", reply_markup=admin_pick_title_keyboard(items))
+        await message.reply_text("Edit කරන්න title එකක් තෝරන්න.", reply_markup=admin_pick_title_keyboard(bot.settings, items))
         return
 
     if mode == "await_edit_title_name":
@@ -199,4 +199,7 @@ async def admin_text_router(bot: MovieBot, message: Message) -> None:
         bot.admin_states.pop(message.from_user.id, None)
         await message.reply_text(f"✅ Codec updated to: {text}\n\n🔄 Variant buttons DB එකෙන් auto refresh වෙයි.")
         return
+
+```
+
 
